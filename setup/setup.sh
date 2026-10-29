@@ -92,13 +92,22 @@ pkg_feeds() {
   esac
 }
 
+# Install the packages and record which ones are new (for setup/uninstall.sh).
+pkg_feeds_recorded() {
+  local before; before=$(mktemp)
+  installed_pkgs > "$before"
+  pkg_feeds
+  record_pkgs_since "$before"
+  rm -f "$before"
+}
+
 do_phase deps && {
   if [ "$(id -u)" = 0 ]; then
     [ "$(distro_family)" != arch ] || die "run setup.sh as your user (it uses sudo itself); makepkg and swiftly refuse root"
-    pkg_feeds
+    pkg_feeds_recorded
   else
     if confirm_yes "Install the system packages with sudo? ($(detect_distro))"; then
-      pkg_feeds
+      pkg_feeds_recorded
     else
       warn "Skipped the system packages: the build needs them (see docs/SETUP.md)."
     fi
@@ -110,11 +119,14 @@ do_phase deps && {
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
     # shellcheck disable=SC1091  # rustup's env file, outside this checkout
     . "$HOME/.cargo/env"
+    record_tool rustup
   fi
   if ! have rcodesign; then
     log " Installing rcodesign (apple-codesign)"
     cargo install apple-codesign --locked
+    record_tool rcodesign
   fi
+  [ -x "$SWIFTLY_HOME_DIR/bin/swiftly" ] || record_tool swiftly
   # Swift for the vphone-cli Linux build: the version in linux-create/.swift-version,
   # installed with swiftly but kept off PATH (setup/lib/swift.sh).
   ensure_swift
