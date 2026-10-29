@@ -127,7 +127,9 @@ If you installed swiftly before, remove its lines from your shell profile (for e
 rcodesign (and rustup, only if setup installed it), the build output in this checkout, and the
 system packages only vphone-linux uses (lzfse, `libxml2-legacy`, usbip, the libimobiledevice
 libraries) or that setup installed, keeping any that another installed package still needs. It asks before each part;
-`--dry-run` shows what it would do. Your VMs in `~/vphone-setup-work` are kept unless you add `--vms`.
+`--dry-run` shows what it would do. Your VMs are kept unless you add `--vms`, and the downloads
+(the iOS/cloudOS IPSWs in `~/.cache/vphone`, the GPU driver, the vphone-cli release) unless you add
+`--downloads`. `--all` does both and everything else after a single question.
 setup.sh records which packages it installed in `~/.local/state/vphone-linux/`; general tools you
 already had (git, gcc, python...) are never removed.
 
