@@ -225,6 +225,7 @@ done
 # ------------------------------------------------------------- 4. release ---
 do_phase release && {
   rel="$VSETUP_RELEASE/app"
+  mkdir -p "$rel"
   log " Setting up the vphone-cli $VPHONE_CLI_PUBLIC release bundle (ROMs + guest resources)"
   zip="$VSETUP_RELEASE/VPhone-$VPHONE_CLI_PUBLIC.zip"
   if [ ! -d "$rel/VPhone.bundle/Contents/Resources/OpenAVB" ]; then
