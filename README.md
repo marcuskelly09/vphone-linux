@@ -91,13 +91,36 @@ Tested guest pairings on Linux:
 ## Quick start
 
 You need a Linux x86_64 PC with a Vulkan GPU (NVIDIA tested), 16 GB RAM or more, about 100 GB free
-disk, and sudo. No Mac. **Two steps**:
+disk, and sudo. No Mac. Fedora, Debian/Ubuntu and **Arch** (plus CachyOS, EndeavourOS, Manjaro)
+are supported. **Two steps**:
 
 ```sh
-git clone https://github.com/YahiaAngelo/vphone-linux.git && cd vphone-linux
+git clone https://github.com/marcuskelly09/vphone-linux.git && cd vphone-linux
 ./setup/setup.sh                    # deps + sources + all binaries (re-runnable)
 ./setup/create-vm.sh                # pick a device and an iOS version; it creates the VM
 ```
+
+Run `setup.sh` as your normal user, not with `sudo`: it asks for your password when it installs
+packages. If a step fails, fix it and run the script again; it skips the work that's already done.
+You can also run one phase at a time: `./setup/setup.sh deps` (or `sources`, `build`, `release`).
+
+**Swift is installed for you.** You don't need to install Swift or swiftly yourself. `setup.sh`
+installs swiftly and the Swift version pinned in `linux-create/.swift-version` (6.4.1), and calls it
+by its full path. It doesn't change your shell profile or PATH, so the toolchain's `clang`/`lld`
+never replace your system ones. To rebuild or run vphone-cli's firmware tools on their own:
+
+```sh
+linux-create/build.sh                    # build (installs Swift first if it's missing)
+linux-create/vphone-cli --help           # run it; sudo linux-create/vphone-cli … for root steps
+```
+
+**On Arch:** `setup.sh` installs the packages with pacman, builds `lzfse` from the AUR (with yay or
+paru if you have one, otherwise makepkg), and installs the headers package for your running kernel.
+Swift's Linux builds need `libxml2.so.2`, which comes from the `libxml2-legacy` package; setup
+installs it. Run `tools/check-host.sh` to check your PC first.
+
+If you installed swiftly before, remove its lines from your shell profile (for example
+`sed -i '/swiftly/d' ~/.zprofile`), so its `clang` no longer comes first on your PATH.
 
 `create-vm.sh` menus down to a tested device/iOS pairing, runs the whole create flow
 (`fw prepare` + `fw patch`, the DFU restore, the SSH-ramdisk CFW install, the snapshot flip),
