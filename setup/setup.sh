@@ -182,7 +182,8 @@ build_qemu() {
 }
 build_creator() {
   log " Building vphone-cli's firmware tooling for Linux (vphone-cli $VPHONE_CLI_PUBLIC)"
-  VPHONE_CLI="$VSETUP_SRC/cpu-tree/vphone-cli-$VPHONE_CLI_PUBLIC" "$VSETUP_SRC/linux-create/build.sh"
+  # build.sh clones the pinned vphone-cli into $VSETUP_SRC/cpu-tree when it is missing.
+  "$VSETUP_SRC/linux-create/build.sh"
 }
 build_usbmuxd() { "$VSETUP_SRC/tools/build-usbmuxd-32k.sh"; }
 # linux-apfs-rw with the iOS 27 volume features accepted (patches/linux-apfs-rw-ios27.patch):
