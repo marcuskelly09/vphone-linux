@@ -252,15 +252,7 @@ do_phase release && {
     cp "$r/OpenSEP/OpenSEP.bin" OpenSEP/OpenSEP.bin 2>/dev/null || cp "$r/OpenSEP.bin" OpenSEP/OpenSEP.bin )
 }
 
-# ---- GPU driver: needs a temporary stock cloudOS restore; interactive. ----
-if [ "$VSETUP_PHASE" = all ] || [ "$VSETUP_PHASE" = release ]; then
-  [ -d "$VSETUP_RELEASE/AppleParavirtGPUMetalIOGPUFamily.bundle" ] || {
-    log "The paravirt GPU driver bundle is not extracted yet."
-    log "Run tools/gpu-driver-from-cloudos.sh (restores a stock cloudOS into a scratch"
-    log "bundle once, then extracts it). Headless and safe; ~1 h. Or skip it: a VM works"
-    log "headless without it, but no graphics. Run:  sudo $VSETUP_SRC/tools/gpu-driver-from-cloudos.sh"
-  }
-fi
-
+# The GPU driver needs a stock cloudOS restore (~20-30 min); create-vm.sh does it in its
+# gpu-driver step, once, after downloading the cloudOS IPSW.
 log "Setup complete: binaries under $VSETUP_SRC, ROMs under $VSETUP_RELEASE."
 log "Next: ./create-vm.sh to pick the device and the iOS version and build the VM."
