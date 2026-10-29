@@ -43,9 +43,11 @@ macOS kmutil (refused here).
 
 `setup.sh` (phases: `deps`, `sources`, `build`, `release`, `all`):
 
-1. **deps** — installs the distro's packages (Fedora / Debian / Ubuntu / Arch), rustup,
-   Swift (for vphone-cli's Linux tooling), rcodesign; checks `vm.max_map_count`
-   and `/dev/vhost-vsock`.
+1. **deps** — installs the distro's packages (Fedora / Debian / Ubuntu / Arch and
+   derivatives; on Arch also `lzfse` from the AUR and the headers for the running
+   kernel), rustup, Swift (for vphone-cli's Linux tooling), rcodesign; checks
+   `vm.max_map_count` and `/dev/vhost-vsock`. Swift is installed with swiftly but
+   kept off your PATH (`setup/lib/swift.sh`). Run it as your user, not with sudo.
 2. **sources** — this checkout (or a `--src` second one) and its three QEMU/GPU submodules.
 3. **build** — reims-vgpu → QEMU (`-M vresearch101`) → vphone-cli's firmware
    tooling for Linux → the restore QEMU (`vusb-restore`) → the 32 KiB usbmuxd.

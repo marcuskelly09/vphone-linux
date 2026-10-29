@@ -14,6 +14,8 @@
 set -Eeuo pipefail
 # shellcheck disable=SC1091  # this checkout's own lib/common.sh, resolved at run time
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
+# shellcheck disable=SC1091
+source "$VSETUP_ROOT/lib/swift.sh"
 
 VSETUP_ASSUME_YES=${VSETUP_ASSUME_YES:-0}
 VSETUP_PHASE=all
@@ -30,9 +32,29 @@ done
 do_phase() { [ "$VSETUP_PHASE" = "$1" ] || [ "$VSETUP_PHASE" = all ]; }
 
 # ---------------------------------------------------------------- 1. deps ---
+# The headers package for the running kernel (linux, linux-lts, linux-zen, a
+# custom kernel's own -headers package...), for linux-apfs-rw.
+arch_kernel_headers() {
+  local base=/usr/lib/modules/$(uname -r)/pkgbase
+  if [ -r "$base" ]; then echo "$(cat "$base")-headers"; else echo linux-headers; fi
+}
+# lzfse (QEMU's --enable-lzfse) is only in the AUR: use an AUR helper when
+# there is one, else build the AUR package with makepkg.
+arch_install_lzfse() {
+  pacman -Q lzfse >/dev/null 2>&1 && return 0
+  if have paru; then paru -S --needed --noconfirm lzfse
+  elif have yay; then yay -S --needed --noconfirm lzfse
+  else
+    local d; d=$(mktemp -d)
+    git clone --depth 1 https://aur.archlinux.org/lzfse.git "$d/lzfse"
+    ( cd "$d/lzfse" && makepkg -si --needed --noconfirm )
+    rm -rf "$d"
+  fi
+}
+
 pkg_feeds() {
-  local distro; distro=${1%%:*}
-  log " Installing splash-screen packages for $distro"
+  local distro; distro=$(distro_family)
+  log " Installing system packages for $distro ($(detect_distro))"
   case $distro in
     fedora)
       sudo dnf install -y git gcc gcc-c++ clang lld binutils make cmake ninja-build meson \
@@ -43,7 +65,7 @@ pkg_feeds() {
         socat gdb perf \
         usbip fuse-sshfs fuse3 7zip kernel-devel \
         libusb1-devel libplist-devel libimobiledevice-glue-devel openssl-devel libcurl-devel ;;
-    ubuntu|debian|linuxmint)
+    debian)
       sudo apt-get update
       sudo apt-get install -y git gcc g++ clang lld binutils make cmake ninja-build meson \
         python3 python3-pil python3-setuptools pkg-config \
@@ -54,22 +76,28 @@ pkg_feeds() {
         socat gdb linux-tools-generic \
         usbip sshfs fuse3 p7zip-full linux-headers-generic \
         libusb-1.0-0-dev libplist-dev libimobiledevice-glue-dev libssl-dev libcurl4-openssl-dev ;;
-    arch|cachyos|manjaro)
-      sudo pacman -S --needed --noconfirm git gcc clang lld binutils make cmake ninja meson \
-        python python-pillow glib2 pixman lzfse libslirp libssh zstd nettle gnutls gtk3 \
-        sdl2 bzip2 libx11 libxkbcommon wayland vulkan-icd-loader vulkan-tools \
-        socat gdb perf usbip sshfs fuse3 p7zip linux-headers \
-        libusb libplist openssl curl ;;
-    *) die "unsupported distro: $1 — install the packages from docs/SETUP.md §2/§5.1 manually." ;;
+    arch)
+      # lzfse is AUR-only (built below); libxml2-legacy gives the Swift
+      # toolchain its libxml2.so.2; base-devel is for makepkg.
+      sudo pacman -S --needed --noconfirm git base-devel gcc clang lld binutils make cmake \
+        ninja meson pkgconf python python-pillow python-setuptools rsync \
+        glib2 pixman libslirp libssh zstd nettle gnutls gtk3 sdl2-compat bzip2 \
+        libx11 libxss libxkbcommon wayland vulkan-icd-loader vulkan-headers vulkan-tools \
+        socat gdb perf usbip sshfs fuse3 7zip zip unzip curl gnupg \
+        libusb libplist libimobiledevice-glue libimobiledevice libusbmuxd libtatsu \
+        libarchive openssl libxml2-legacy libedit sqlite \
+        "$(arch_kernel_headers)"
+      arch_install_lzfse ;;
+    *) die "unsupported distro: $(detect_distro) — install the packages from docs/SETUP.md §2/§5.1 manually." ;;
   esac
 }
 
 do_phase deps && {
   if [ "$(id -u)" = 0 ]; then
+    [ "$(distro_family)" != arch ] || die "run setup.sh as your user (it uses sudo itself); makepkg and swiftly refuse root"
     pkg_feeds
   else
-    confirm "Install the system packages with sudo? (chooser: $(detect_distro))" &&
-      pkg_feeds "$(detect_distro)"
+    confirm "Install the system packages with sudo? ($(detect_distro))" && pkg_feeds
   fi
 
   # rustup (reims-vgpu) — its own pins come from rust-toolchain.toml
@@ -83,21 +111,9 @@ do_phase deps && {
     log " Installing rcodesign (apple-codesign)"
     cargo install apple-codesign --locked
   fi
-  # swiftly (Swift for the vphone-cli Linux build)
-  if ! have swift; then
-    log " Installing swiftly + Swift 6.4.1"
-    curl -O "https://download.swift.org/swiftly/linux/swiftly-1.1.2-$(uname -m).tar.gz"
-    tar -zxf "swiftly-1.1.2-$(uname -m).tar.gz" && rm "swiftly-1.1.2-$(uname -m).tar.gz" 
-    ./swiftly install -y 6.4.1  # swiftly 6.4.1; ask: 'swiftly install 6.4.1' if script name changes
-    rm -f ./swiftly
-    # shellcheck disable=SC1091  # swiftly's env file, outside this checkout
-    if [ -r "$HOME/.local/share/swiftly/env.sh" ]; then
-      . "$HOME/.local/share/swiftly/env.sh"
-    else
-      # shellcheck disable=SC1091
-      . "$HOME/.swiftly/env.sh"
-    fi
-  fi
+  # Swift for the vphone-cli Linux build: the version in linux-create/.swift-version,
+  # installed with swiftly but kept off PATH (setup/lib/swift.sh).
+  ensure_swift
   # sysctl for reims-vgpu's guest-memory mappings
   if [ "$(cat /proc/sys/vm/max_map_count)" -lt 1048576 ]; then
     warn "vm.max_map_count is $(cat /proc/sys/vm/max_map_count); add"
@@ -149,14 +165,7 @@ build_qemu() {
 }
 build_creator() {
   log " Building vphone-cli's firmware tooling for Linux (vphone-cli $VPHONE_CLI_PUBLIC)"
-  local src="$VSETUP_SRC/cpu-tree/vphone-cli-$VPHONE_CLI_PUBLIC"
-  mkdir -p "$(dirname "$src")"
-  if [ ! -d "$src/.git" ]; then
-    git clone --depth 1 --branch "$VPHONE_CLI_PUBLIC" "$VPHONE_CLI_REPO" "$src"
-  fi
-  ( cd "$VSETUP_SRC/linux-create"
-    VPHONE_CLI="$src" ./sync-sources.sh
-    swift build --build-system swiftbuild --scratch-path .build/out )
+  VPHONE_CLI="$VSETUP_SRC/cpu-tree/vphone-cli-$VPHONE_CLI_PUBLIC" "$VSETUP_SRC/linux-create/build.sh"
 }
 build_usbmuxd() { "$VSETUP_SRC/tools/build-usbmuxd-32k.sh"; }
 # linux-apfs-rw with the iOS 27 volume features accepted (patches/linux-apfs-rw-ios27.patch):
@@ -181,7 +190,8 @@ build_apfs() {
 }
 
 do_phase build && for step in reims qemu creator usbmuxd apfs; do
-  "build_$step"
+  # The C/Rust builds use the system clang/lld, never the Swift toolchain's copies.
+  PATH=$(path_without_swiftly) "build_$step"
 done
 
 # ------------------------------------------------------------- 4. release ---

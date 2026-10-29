@@ -50,6 +50,22 @@ pick_json() { _json "$@"; }
   fi
 }
 
+# The package family: fedora, debian or arch (derivatives such as CachyOS,
+# EndeavourOS, Manjaro or Garuda map to arch through ID_LIKE).
+distro_family() {
+  local id like
+  # shellcheck disable=SC1091
+  id=$( . /etc/os-release 2>/dev/null; echo "${ID:-unknown}")
+  # shellcheck disable=SC1091
+  like=$( . /etc/os-release 2>/dev/null; echo "${ID_LIKE:-}")
+  case " $id $like " in
+    *" arch "*|*" cachyos "*|*" manjaro "*|*" endeavouros "*) echo arch ;;
+    *" fedora "*|*" rhel "*) echo fedora ;;
+    *" debian "*|*" ubuntu "*|*" linuxmint "*) echo debian ;;
+    *) echo "$id" ;;
+  esac
+}
+
 have() { command -v "$1" >/dev/null 2>&1; }
 
 require_root() {
