@@ -115,8 +115,8 @@ linux-create/build.sh                    # build (installs Swift first if it's m
 linux-create/vphone-cli --help           # run it; sudo linux-create/vphone-cli … for root steps
 ```
 
-**On Arch:** `setup.sh` installs the packages with pacman, builds `lzfse` from the AUR (with yay or
-paru if you have one, otherwise makepkg), and installs the headers package for your running kernel.
+**On Arch:** `setup.sh` installs the packages with pacman, builds `lzfse` from the AUR with makepkg,
+with LTO off so the Swift toolchain can link it, and installs the headers package for your running kernel.
 Swift's Linux builds need `libxml2.so.2`, which comes from the `libxml2-legacy` package; setup
 installs it. Run `tools/check-host.sh` to check your PC first.
 

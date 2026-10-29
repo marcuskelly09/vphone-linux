@@ -30,5 +30,7 @@ swift_check_libs
 cd "$here"
 VPHONE_CLI=$src ./sync-sources.sh
 log "Building with Swift $VPHONE_SWIFT_VERSION ($(swift_bin))"
-swift build --build-system swiftbuild --scratch-path .build/out "$@"
+# Link with the toolchain's lld: Swift's default on Linux is gold, which Arch's binutils
+# crashes in (internal error in format_file_lineno) instead of reporting a link error.
+swift build --build-system swiftbuild --scratch-path .build/out -Xswiftc -use-ld=lld "$@"
 log "Built: $here/.build/out/out/Products/Debug-linux-x86_64/vphone-cli  (or run linux-create/vphone-cli)"

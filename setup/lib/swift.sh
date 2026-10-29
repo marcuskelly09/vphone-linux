@@ -33,16 +33,23 @@ swift_bin() { echo "$SWIFTLY_TOOLCHAINS_DIR/$VPHONE_SWIFT_VERSION/usr/bin/swift"
 
 # The toolchain links the narrow libncurses.so.6 (and lldb libform/libpanel);
 # Arch ships only the wide-char builds, which export the same API (Arch's own
-# libncurses.so points at libncursesw too). Link them into a private folder
-# that only the swift() calls below see.
+# libncurses.so points at libncursesw too). The links go inside each installed
+# toolchain, in the folders its binaries search on their own (RUNPATH
+# $ORIGIN/../lib/swift/linux and $ORIGIN/../lib): Swift's build system starts
+# swiftc with a clean environment, so LD_LIBRARY_PATH alone does not reach it.
+# The private folder below is for the few binaries with no RUNPATH
+# (swift-build-tool), through the swift() wrapper.
 swift_compat_dir() { echo "$SWIFTLY_HOME_DIR/vphone-compat"; }
 swift_make_compat() {
-  local dir lib
-  dir=$(swift_compat_dir); mkdir -p "$dir"
+  local lib dir
   for lib in ncurses form panel; do
-    if ! ldconfig -p | grep -q "lib$lib\.so\.6 " && [ -e "/usr/lib/lib${lib}w.so.6" ]; then
-      ln -sfn "/usr/lib/lib${lib}w.so.6" "$dir/lib$lib.so.6"
-    fi
+    ldconfig -p | grep -q "lib$lib\.so\.6 " && continue        # the system has it
+    [ -e "/usr/lib/lib${lib}w.so.6" ] || continue
+    for dir in "$(swift_compat_dir)" "$SWIFTLY_TOOLCHAINS_DIR"/*/usr/lib "$SWIFTLY_TOOLCHAINS_DIR"/*/usr/lib/swift/linux; do
+      case $dir in *'*'*) continue ;; esac                         # no toolchain installed
+      mkdir -p "$dir"
+      [ -e "$dir/lib$lib.so.6" ] || ln -sfn "/usr/lib/lib${lib}w.so.6" "$dir/lib$lib.so.6"
+    done
   done
 }
 
@@ -86,8 +93,8 @@ ensure_swift() {
 swift_check_libs() {
   local dir missing
   dir=$(dirname "$(swift_bin)")
-  missing=$(LD_LIBRARY_PATH="$(swift_compat_dir)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
-    ldd "$dir/swift-package" "$dir/swift-frontend" "$dir/swift-build-tool" "$dir/swift-driver" \
+  # No LD_LIBRARY_PATH here: the build system runs these with a clean environment.
+  missing=$(ldd "$dir/swift-package" "$dir/swift-frontend" "$dir/swift-driver" \
     2>/dev/null | awk '/not found/{print $1}' | sort -u)
   if [ -n "$missing" ]; then
     printf 'ERROR the Swift toolchain is missing libraries: %s\n' "$(echo "$missing" | tr '\n' ' ')" >&2

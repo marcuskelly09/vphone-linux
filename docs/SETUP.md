@@ -79,10 +79,13 @@ sudo pacman -S --needed git base-devel gcc clang lld binutils make cmake ninja m
   vulkan-tools socat gdb perf usbip sshfs fuse3 7zip zip unzip curl gnupg libusb libplist \
   libimobiledevice-glue libimobiledevice libusbmuxd libtatsu libarchive openssl \
   libxml2-legacy libedit sqlite "$(cat /usr/lib/modules/$(uname -r)/pkgbase)-headers"
-git clone https://aur.archlinux.org/lzfse.git /tmp/lzfse && (cd /tmp/lzfse && makepkg -si)  # or: yay -S lzfse
+git clone https://aur.archlinux.org/lzfse.git /tmp/lzfse
+echo "options+=('!lto')" >> /tmp/lzfse/PKGBUILD && (cd /tmp/lzfse && makepkg -sif)
 ```
 
-`lzfse` is only in the AUR. `libxml2-legacy` provides `libxml2.so.2`, which the Swift toolchain
+`lzfse` is only in the AUR. Build it with LTO off as above (not with yay/paru): Arch's default LTO
+fills its static `liblzfse.a` with GCC's intermediate code, which the Swift toolchain's linker cannot
+read (`undefined symbol: lzfse_encode_buffer`). `libxml2-legacy` provides `libxml2.so.2`, which the Swift toolchain
 (`swift build`, `lld`) needs; Arch's own `libxml2` is a newer, incompatible version.
 
 On other distributions, install the same packages under their names there. `lld` provides

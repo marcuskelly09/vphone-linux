@@ -38,18 +38,23 @@ arch_kernel_headers() {
   local base=/usr/lib/modules/$(uname -r)/pkgbase
   if [ -r "$base" ]; then echo "$(cat "$base")-headers"; else echo linux-headers; fi
 }
-# lzfse (QEMU's --enable-lzfse) is only in the AUR: use an AUR helper when
-# there is one, else build the AUR package with makepkg.
+# lzfse (QEMU's --enable-lzfse, and the Swift build) is only in the AUR, and it
+# ships just a static liblzfse.a. Arch's makepkg.conf turns on LTO, which fills
+# that archive with GCC's intermediate code instead of machine code: GCC links
+# it, but the Swift toolchain's linker (lld/gold) cannot, so vphone-cli fails
+# with undefined lzfse_encode_buffer. Build it here with LTO off (an AUR helper
+# would use the LTO default), and rebuild an installed copy that has LTO in it.
+lzfse_has_lto() { objdump -h /usr/lib/liblzfse.a 2>/dev/null | grep -q '\.gnu\.lto_'; }
 arch_install_lzfse() {
-  pacman -Q lzfse >/dev/null 2>&1 && return 0
-  if have paru; then paru -S --needed --noconfirm lzfse
-  elif have yay; then yay -S --needed --noconfirm lzfse
-  else
-    local d; d=$(mktemp -d)
-    git clone --depth 1 https://aur.archlinux.org/lzfse.git "$d/lzfse"
-    ( cd "$d/lzfse" && makepkg -si --needed --noconfirm )
-    rm -rf "$d"
-  fi
+  if pacman -Q lzfse >/dev/null 2>&1 && ! lzfse_has_lto; then return 0; fi
+  pacman -Q lzfse >/dev/null 2>&1 && log " Rebuilding lzfse without LTO (the installed liblzfse.a has GCC LTO code)"
+  local d; d=$(mktemp -d)
+  git clone --depth 1 https://aur.archlinux.org/lzfse.git "$d/lzfse"
+  printf "\n# vphone-linux: plain machine code in liblzfse.a, for the Swift toolchain's linker\noptions+=('!lto')\n" \
+    >> "$d/lzfse/PKGBUILD"
+  ( cd "$d/lzfse" && makepkg -sif --noconfirm )
+  rm -rf "$d"
+  ! lzfse_has_lto || die "liblzfse.a still has LTO code; rebuild the lzfse package with options=('!lto')"
 }
 
 pkg_feeds() {
