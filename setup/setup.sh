@@ -44,7 +44,7 @@ arch_kernel_headers() {
 # it, but the Swift toolchain's linker (lld/gold) cannot, so vphone-cli fails
 # with undefined lzfse_encode_buffer. Build it here with LTO off (an AUR helper
 # would use the LTO default), and rebuild an installed copy that has LTO in it.
-lzfse_has_lto() { objdump -h /usr/lib/liblzfse.a 2>/dev/null | grep -q '\.gnu\.lto_'; }
+lzfse_has_lto() { objdump -h /usr/lib/liblzfse.a 2>/dev/null | grep '\.gnu\.lto_' >/dev/null; }
 arch_install_lzfse() {
   if pacman -Q lzfse >/dev/null 2>&1 && ! lzfse_has_lto; then return 0; fi
   pacman -Q lzfse >/dev/null 2>&1 && log " Rebuilding lzfse without LTO (the installed liblzfse.a has GCC LTO code)"
@@ -212,6 +212,11 @@ build_apfs() {
   make -C "$dir"
 }
 
+# An lzfse built with Arch's default LTO cannot be linked by Swift: rebuild it first
+# (needs sudo), so `./setup.sh build` alone is enough after pulling this fix.
+if do_phase build && [ "$(distro_family)" = arch ] && lzfse_has_lto; then
+  arch_install_lzfse
+fi
 do_phase build && for step in reims qemu creator usbmuxd apfs; do
   # The C/Rust builds use the system clang/lld, never the Swift toolchain's copies.
   PATH=$(path_without_swiftly) "build_$step"

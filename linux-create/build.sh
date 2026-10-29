@@ -26,6 +26,12 @@ fi
 
 ensure_swift
 swift_check_libs
+# Arch's makepkg builds the AUR lzfse with LTO by default: its liblzfse.a then has no machine
+# code the Swift linker can use (undefined symbol: lzfse_encode_buffer).
+if [ -e /usr/lib/liblzfse.a ] && objdump -h /usr/lib/liblzfse.a 2>/dev/null | grep '\.gnu\.lto_' >/dev/null; then
+  die "/usr/lib/liblzfse.a was built with LTO, which Swift cannot link.
+      Rebuild it: ./setup/setup.sh deps   (or see docs/SETUP.md, the Arch section)"
+fi
 
 cd "$here"
 VPHONE_CLI=$src ./sync-sources.sh

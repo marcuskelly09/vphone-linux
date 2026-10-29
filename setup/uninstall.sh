@@ -49,7 +49,7 @@ mapfile -t built < <(existing "$SRC/qemu/build" "$SRC/reims-vgpu/target" "$SRC/m
   "$SRC/OpenAVB" "$SRC/OpenSEP" "$SRC/guest-resources")
 if [ ${#built[@]} -gt 0 ]; then
   log "Build output in $SRC:"; printf '   %s\n' "${built[@]}"
-  if lsmod 2>/dev/null | grep -q '^apfs '; then
+  if lsmod 2>/dev/null | grep '^apfs ' >/dev/null; then
     warn "the apfs module is loaded; unload it later with: sudo rmmod apfs"
   fi
   if ask "Delete the build output?"; then run rm -rf "${built[@]}"; fi
@@ -85,7 +85,7 @@ done
 
 # ------------------------------------------------------------- Rust tools ---
 tools=$(cat "$VSETUP_STATE/tools.txt" 2>/dev/null || true)
-if have cargo && cargo install --list 2>/dev/null | grep -q '^apple-codesign '; then
+if have cargo && cargo install --list 2>/dev/null | grep '^apple-codesign ' >/dev/null; then
   if grep -qx rcodesign <<<"$tools"; then
     log "rcodesign was installed by setup.sh"
   else

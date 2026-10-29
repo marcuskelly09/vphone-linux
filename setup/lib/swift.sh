@@ -43,7 +43,7 @@ swift_compat_dir() { echo "$SWIFTLY_HOME_DIR/vphone-compat"; }
 swift_make_compat() {
   local lib dir
   for lib in ncurses form panel; do
-    ldconfig -p | grep -q "lib$lib\.so\.6 " && continue        # the system has it
+    ldconfig -p | grep "lib$lib\.so\.6 " >/dev/null && continue        # the system has it
     [ -e "/usr/lib/lib${lib}w.so.6" ] || continue
     for dir in "$(swift_compat_dir)" "$SWIFTLY_TOOLCHAINS_DIR"/*/usr/lib "$SWIFTLY_TOOLCHAINS_DIR"/*/usr/lib/swift/linux; do
       case $dir in *'*'*) continue ;; esac                         # no toolchain installed
