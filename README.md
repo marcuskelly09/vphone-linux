@@ -100,14 +100,15 @@ git clone https://github.com/marcuskelly09/vphone-linux.git && cd vphone-linux
 ./setup/create-vm.sh                # pick a device and an iOS version; it creates the VM
 ```
 
-Run `setup.sh` as your normal user, not with `sudo`: it asks for your password when it installs
-packages. If a step fails, fix it and run the script again; it skips the work that's already done.
+Run `setup.sh` as your normal user, not with `sudo`. Answer yes (or press Enter) when it asks to
+install the system packages; it then asks for your password. If a step fails, fix it and run the script again; it skips the work that's already done.
 You can also run one phase at a time: `./setup/setup.sh deps` (or `sources`, `build`, `release`).
 
 **Swift is installed for you.** You don't need to install Swift or swiftly yourself. `setup.sh`
-installs swiftly and the Swift version pinned in `linux-create/.swift-version` (6.4.1), and calls it
-by its full path. It doesn't change your shell profile or PATH, so the toolchain's `clang`/`lld`
-never replace your system ones. To rebuild or run vphone-cli's firmware tools on their own:
+installs swiftly and the Swift version pinned in `linux-create/.swift-version` (6.4.1). It puts only
+`swift`, `swiftc` and `swiftly` into `~/.local/bin`, so you can use them in a terminal. It doesn't
+change your shell profile, and the toolchain's `clang`/`lld` never replace your system ones. To
+rebuild or run vphone-cli's firmware tools on their own:
 
 ```sh
 linux-create/build.sh                    # build (installs Swift first if it's missing)

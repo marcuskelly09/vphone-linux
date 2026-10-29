@@ -35,7 +35,7 @@ swift_bin() { echo "$SWIFTLY_TOOLCHAINS_DIR/$VPHONE_SWIFT_VERSION/usr/bin/swift"
 # Arch ships only the wide-char builds, which export the same API (Arch's own
 # libncurses.so points at libncursesw too). Link them into a private folder
 # that only the swift() calls below see.
-swift_compat_dir() { echo "$SWIFTLY_TOOLCHAINS_DIR/$VPHONE_SWIFT_VERSION/usr/lib/vphone-compat"; }
+swift_compat_dir() { echo "$SWIFTLY_HOME_DIR/vphone-compat"; }
 swift_make_compat() {
   local dir lib
   dir=$(swift_compat_dir); mkdir -p "$dir"
@@ -94,6 +94,29 @@ swift_check_libs() {
     case "$missing" in *libxml2.so.2*) printf '      on Arch: sudo pacman -S libxml2-legacy\n' >&2 ;; esac
     return 1
   fi
+}
+
+# Put swift, swiftc and swiftly (only those, not swiftly's clang/lld) into
+# ~/.local/bin, so they work in a terminal without sourcing swiftly's env.sh.
+# swift/swiftc go through swiftly's proxies, so `swiftly use` still applies.
+swift_link_commands() {
+  local bin=$HOME/.local/bin cmd
+  mkdir -p "$bin"
+  for cmd in swift swiftc; do
+    cat > "$bin/$cmd" <<WRAP
+#!/bin/sh
+# Written by vphone-linux setup (setup/lib/swift.sh): swiftly's $cmd, without its clang/lld on PATH.
+export SWIFTLY_HOME_DIR="$SWIFTLY_HOME_DIR" SWIFTLY_BIN_DIR="$SWIFTLY_HOME_DIR/bin" SWIFTLY_TOOLCHAINS_DIR="$SWIFTLY_TOOLCHAINS_DIR"
+export LD_LIBRARY_PATH="$(swift_compat_dir)\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+exec "$SWIFTLY_HOME_DIR/bin/$cmd" "\$@"
+WRAP
+    chmod +x "$bin/$cmd"
+  done
+  ln -sfn "$SWIFTLY_HOME_DIR/bin/swiftly" "$bin/swiftly"
+  case ":$PATH:" in
+    *":$bin:"*) ;;
+    *) printf 'WARN %s is not on your PATH; add it to use swift/swiftly in a terminal\n' "$bin" >&2 ;;
+  esac
 }
 
 # Print PATH without swiftly's bin dir, so C builds use the system clang/lld.

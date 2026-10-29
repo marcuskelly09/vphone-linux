@@ -97,7 +97,11 @@ do_phase deps && {
     [ "$(distro_family)" != arch ] || die "run setup.sh as your user (it uses sudo itself); makepkg and swiftly refuse root"
     pkg_feeds
   else
-    confirm "Install the system packages with sudo? ($(detect_distro))" && pkg_feeds
+    if confirm_yes "Install the system packages with sudo? ($(detect_distro))"; then
+      pkg_feeds
+    else
+      warn "Skipped the system packages: the build needs them (see docs/SETUP.md)."
+    fi
   fi
 
   # rustup (reims-vgpu) — its own pins come from rust-toolchain.toml
@@ -114,6 +118,7 @@ do_phase deps && {
   # Swift for the vphone-cli Linux build: the version in linux-create/.swift-version,
   # installed with swiftly but kept off PATH (setup/lib/swift.sh).
   ensure_swift
+  swift_link_commands
   # sysctl for reims-vgpu's guest-memory mappings
   if [ "$(cat /proc/sys/vm/max_map_count)" -lt 1048576 ]; then
     warn "vm.max_map_count is $(cat /proc/sys/vm/max_map_count); add"
