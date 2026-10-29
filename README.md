@@ -1,4 +1,4 @@
-# vphone-linux
+# vphone-linux (Fixed for Arch Linux)
 
 Run [vphone-cli](https://github.com/Lakr233/vphone-cli)'s virtual iPhone on a **Linux x86_64 host**.
 
